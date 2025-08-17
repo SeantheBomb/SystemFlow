@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stock Graph Simulator</title>
+  <style>
+    :root{
+      --bg:#0f1220; --panel:#181c2f; --panel-2:#12162a; --text:#e7ecff; --muted:#95a0c9; --accent:#6ea8ff; --accent-2:#9e7bff;
+      --ok:#2ec27e; --warn:#f5c542; --bad:#ff6b6b; --line:#283053;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;}
+    body{
+      margin:0; background:linear-gradient(180deg, var(--bg), #0a0d18 40%);
+      color:var(--text); font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      user-select:none;
+    }
+    #app{display:flex; flex-direction:column; height:100%;}
+
+    /* Toolbar */
+    #toolbar{
+      display:flex; align-items:center; gap:.6rem; padding:.6rem 1rem; background:var(--panel); border-bottom:1px solid var(--line);
+      position:sticky; top:0; z-index:2;
+    }
+    #toolbar .group{display:flex; align-items:center; gap:.5rem; background:var(--panel-2); padding:.4rem .6rem; border:1px solid var(--line); border-radius:12px;}
+    button, select, input[type="number"], input[type="text"]{
+      background:#0c1024; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:.4rem .6rem;
+    }
+    button{cursor:pointer}
+    button.primary{background:linear-gradient(180deg, #233569, #1b2a55); border-color:#2c3a68}
+    button:disabled{opacity:.5; cursor:not-allowed}
+
+    .main{display:grid; grid-template-columns: 1fr 380px; gap:0; flex:1; min-height:0;}
+    #graphPane{position:relative; background:#0a0e20; border-right:1px solid var(--line);}
+    #graph{width:100%; height:100%; display:block;}
+
+    /* Side panel */
+    #sidePane{display:flex; flex-direction:column; min-width:320px; background:var(--panel);}
+    .section{border-bottom:1px solid var(--line); padding: .8rem 1rem}
+    .section h3{margin:.2rem 0 .6rem 0; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em}
+    .row{display:grid; grid-template-columns: 1fr 1fr; gap:.5rem; margin:.35rem 0}
+    .full{grid-column:1/-1}
+    .muted{color:var(--muted)}
+    .chip{display:inline-flex; align-items:center; gap:.35rem; background:var(--panel-2); border:1px solid var(--line); padding:.2rem .5rem; border-radius:999px; font-size:12px}
+
+    /* Node styles */
+    .node rect{fill:url(#nodeGrad); stroke:#3a4a7a; stroke-width:1.5px; rx:12; ry:12;}
+    .node.selected rect{stroke:var(--accent); filter: drop-shadow(0 0 8px rgba(110,168,255,.25));}
+    .node text{pointer-events:none; font-size:12px}
+    .node .title{font-weight:600;}
+    .node .value{fill:#c6d3ff}
+    .edge-path{stroke:#6272a4; stroke-width:2; fill:none}
+    .edge-path.active{stroke:var(--ok)}
+
+    /* Edge list */
+    .edgeItem{background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:.5rem; margin:.4rem 0}
+    .edgeItem .actions{display:flex; gap:.4rem}
+
+    /* Timeline */
+    #timelineControls{display:flex; align-items:center; gap:.5rem}
+    input[type="range"]{width:100%}
+
+    /* Chart */
+    #chart{width:100%; height:220px; background:var(--panel-2); border:1px solid var(--line); border-radius:12px}
+    #legend{display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.4rem}
+
+    /* Overlay dialog */
+    #overlay{position:absolute; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:5}
+    #dialog{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:1rem; width:360px}
+    #dialog h4{margin:.2rem 0 .6rem 0}
+    .dialog-actions{display:flex; justify-content:flex-end; gap:.5rem; margin-top:.7rem}
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="toolbar">
+    <div class="group">
+      <button id="addNodeBtn" class="primary">+ Add Stock</button>
+      <button id="connectBtn">Connect Stocks</button>
+      <span class="chip" id="connectHint" style="display:none">Connect: pick source → target</span>
+    </div>
+    <div class="group">
+      <label class="muted">Duration (s)</label>
+      <input type="number" id="duration" min="1" step="1" value="60" style="width:80px">
+      <label class="muted">Δt (s)</label>
+      <input type="number" id="dt" min="0.01" step="0.01" value="0.5" style="width:80px">
+      <button id="simulateBtn" class="primary">Simulate</button>
+    </div>
+    <div class="group" style="margin-left:auto">
+      <span class="muted">Tip: Select a stock to edit & see its chart</span>
+    </div>
+  </div>
+
+  <div class="main">
+    <div id="graphPane">
+      <svg id="graph">
+        <defs>
+          <linearGradient id="nodeGrad" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="#1b2450"/>
+            <stop offset="100%" stop-color="#131a3a"/>
+          </linearGradient>
+          <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#6272a4"/>
+          </marker>
+          <marker id="arrowActive" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#2ec27e"/>
+          </marker>
+        </defs>
+        <!-- edges under nodes -->
+        <g id="edges"></g>
+        <g id="nodes"></g>
+      </svg>
+      <div id="overlay">
+        <div id="dialog">
+          <h4>Configure Connection</h4>
+          <div class="row">
+            <label>Required amount (source)</label>
+            <input type="number" id="reqInput" step="0.1" value="0">
+          </div>
+          <div class="row">
+            <label>Δ to target / tick</label>
+            <input type="number" id="deltaTargetInput" step="0.1" value="1">
+          </div>
+          <div class="row">
+            <label>Δ to source / tick</label>
+            <input type="number" id="deltaSelfInput" step="0.1" value="-1">
+          </div>
+          <div class="dialog-actions">
+            <button id="cancelEdgeBtn">Cancel</button>
+            <button id="saveEdgeBtn" class="primary">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="sidePane">
+      <div class="section">
+        <h3>Playback</h3>
+        <div id="timelineControls">
+          <button id="playBtn">▶︎</button>
+          <button id="pauseBtn" disabled>⏸</button>
+          <button id="stepBackBtn">⟲</button>
+          <button id="stepFwdBtn">⟳</button>
+          <select id="speed">
+            <option value="0.25">0.25×</option>
+            <option value="0.5">0.5×</option>
+            <option value="1" selected>1×</option>
+            <option value="2">2×</option>
+            <option value="4">4×</option>
+          </select>
+        </div>
+        <div class="row full" style="align-items:center; gap:.6rem; margin-top:.5rem">
+          <input type="range" id="timeSlider" min="0" max="0" value="0" step="1" class="full">
+          <span id="timeLabel" class="muted" style="width:80px; text-align:right">t=0.0s</span>
+        </div>
+      </div>
+
+      <div class="section" id="inspector">
+        <h3>Stock Inspector</h3>
+        <div id="noSelection" class="muted">No stock selected.</div>
+        <div id="stockForm" style="display:none">
+          <div class="row">
+            <label>Name</label>
+            <input type="text" id="stockName">
+          </div>
+          <div class="row">
+            <label>Initial value</label>
+            <input type="number" id="stockInitial" step="0.1">
+          </div>
+          <div class="row full">
+            <button id="deleteNodeBtn" style="background:#361d29;border-color:#5d2a42">Delete Stock</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Outgoing Connections</h3>
+        <div id="edgesList" class="muted">Select a stock to see & edit its connections.</div>
+      </div>
+
+      <div class="section">
+        <h3>Chart</h3>
+        <svg id="chart"></svg>
+        <div id="legend"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ====== Data Model ======
+const state = {
+  nodes: [],       // {id, name, initial, x, y, values: number[]}
+  edges: [],       // {id, from, to, required, dTarget, dSelf}
+  selectedNodeId: null,
+  selectedEdgeId: null,
+  sim: { dt: 0.5, duration: 60, steps: 0, timeIndex: 0, playing:false, speed:1 },
+  connect: { enabled:false, phase:0, sourceId:null, targetId:null }
+};
+
+const svg = document.getElementById('graph');
+const gNodes = document.getElementById('nodes');
+const gEdges = document.getElementById('edges');
+const overlay = document.getElementById('overlay');
+
+const $ = (id)=>document.getElementById(id);
+
+// ====== ID helper ======
+let _idCounter = 1;
+function uid(prefix='id'){ return prefix + (_idCounter++); }
+
+// ====== Graph Helpers ======
+function addNode(x=120+Math.random()*260, y=120+Math.random()*180){
+  const id = uid('n');
+  const node = { id, name:`Stock ${state.nodes.length+1}`, initial: 100, x, y, values: [] };
+  state.nodes.push(node);
+  selectNode(id);
+  render();
+}
+
+function deleteNode(id){
+  const idx = state.nodes.findIndex(n=>n.id===id);
+  if(idx>=0){ state.nodes.splice(idx,1); }
+  state.edges = state.edges.filter(e=>e.from!==id && e.to!==id);
+  if(state.selectedNodeId===id) state.selectedNodeId=null;
+  render();
+}
+
+function addEdge(from, to, required=0, dTarget=1, dSelf=-1){
+  const id = uid('e');
+  state.edges.push({id, from, to, required, dTarget, dSelf});
+  render();
+}
+
+function deleteEdge(id){
+  state.edges = state.edges.filter(e=>e.id!==id);
+  render();
+}
+
+function getNode(id){ return state.nodes.find(n=>n.id===id); }
+function getEdgesFrom(id){ return state.edges.filter(e=>e.from===id); }
+
+// ====== Rendering Nodes & Edges ======
+function render(){
+  renderEdges();
+  renderNodes();
+  renderInspector();
+  renderEdgesList();
+  drawChart();
+  updateTimeLabel();
+}
+
+function renderNodes(){
+  gNodes.innerHTML = '';
+  for(const node of state.nodes){
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.classList.add('node');
+    if(node.id===state.selectedNodeId) g.classList.add('selected');
+    g.setAttribute('data-id', node.id);
+    g.setAttribute('transform', `translate(${node.x},${node.y})`);
+
+    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('width', 160); rect.setAttribute('height', 70);
+    g.appendChild(rect);
+
+    const title = document.createElementNS('http://www.w3.org/2000/svg','text');
+    title.setAttribute('x', 12); title.setAttribute('y', 20); title.setAttribute('class','title');
+    title.textContent = node.name;
+    g.appendChild(title);
+
+    const v = document.createElementNS('http://www.w3.org/2000/svg','text');
+    v.setAttribute('x', 12); v.setAttribute('y', 44); v.setAttribute('class','value');
+    const t = state.sim.timeIndex;
+    const displayVal = node.values && node.values.length ? node.values[Math.min(t, node.values.length-1)] : node.initial;
+    v.textContent = `Value: ${fmt(displayVal)}`;
+    g.appendChild(v);
+
+    const sub = document.createElementNS('http://www.w3.org/2000/svg','text');
+    sub.setAttribute('x', 12); sub.setAttribute('y', 60); sub.setAttribute('class','muted');
+    sub.textContent = `id ${node.id}`;
+    g.appendChild(sub);
+
+    // Events
+    g.addEventListener('mousedown', onNodeMouseDown);
+    g.addEventListener('click', onNodeClick);
+
+    gNodes.appendChild(g);
+  }
+}
+
+function nodeCenter(n){ return { x: n.x + 80, y: n.y + 35 }; }
+
+function renderEdges(){
+  gEdges.innerHTML = '';
+  for(const e of state.edges){
+    const src = getNode(e.from), dst = getNode(e.to);
+    if(!src || !dst) continue;
+    const s = nodeCenter(src), d = nodeCenter(dst);
+    const dx = d.x - s.x; const dy = d.y - s.y; const mx = s.x + dx/2; const my = s.y + dy/2 - 40*Math.sign(dy||1);
+    const pathStr = `M ${s.x} ${s.y} Q ${mx} ${my} ${d.x} ${d.y}`;
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', pathStr);
+    path.setAttribute('class','edge-path');
+    path.setAttribute('marker-end','url(#arrow)');
+
+    // Active styling if condition met at current time
+    const t = state.sim.timeIndex;
+    const srcVal = src.values && src.values.length ? src.values[Math.min(t, src.values.length-1)] : src.initial;
+    if(srcVal >= e.required){
+      path.classList.add('active');
+      path.setAttribute('marker-end','url(#arrowActive)');
+    }
+
+    // Hover tooltip
+    path.addEventListener('mouseenter', ()=>{
+      path.setAttribute('stroke-width','3');
+    });
+    path.addEventListener('mouseleave', ()=>{
+      path.setAttribute('stroke-width','2');
+    });
+
+    // Click to select edge via its src node's list
+    path.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      state.selectedNodeId = e.from;
+      state.selectedEdgeId = e.id;
+      renderInspector();
+      renderEdgesList();
+    });
+
+    gEdges.appendChild(path);
+  }
+}
+
+// ====== Dragging ======
+let drag = { active:false, id:null, offX:0, offY:0 };
+function onNodeMouseDown(ev){
+  const g = ev.currentTarget;
+  const id = g.getAttribute('data-id');
+  const n = getNode(id);
+  drag.active = true; drag.id = id;
+  const pt = clientToSvg(ev.clientX, ev.clientY);
+  drag.offX = pt.x - n.x; drag.offY = pt.y - n.y;
+  svg.addEventListener('mousemove', onSvgMouseMove);
+  svg.addEventListener('mouseup', onSvgMouseUp);
+}
+function onSvgMouseMove(ev){
+  if(!drag.active) return;
+  const n = getNode(drag.id);
+  const pt = clientToSvg(ev.clientX, ev.clientY);
+  n.x = pt.x - drag.offX; n.y = pt.y - drag.offY;
+  render();
+}
+function onSvgMouseUp(){ drag.active=false; svg.removeEventListener('mousemove', onSvgMouseMove); svg.removeEventListener('mouseup', onSvgMouseUp); }
+
+function clientToSvg(cx, cy){
+  const pt = svg.createSVGPoint(); pt.x = cx; pt.y = cy; return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+
+// ====== Selection & Connect ======
+function onNodeClick(ev){
+  ev.stopPropagation();
+  const id = ev.currentTarget.getAttribute('data-id');
+  if(state.connect.enabled){
+    if(state.connect.phase===0){
+      state.connect.sourceId = id; state.connect.phase = 1; updateConnectHint();
+    } else if(state.connect.phase===1){
+      state.connect.targetId = id;
+      if(state.connect.targetId === state.connect.sourceId){
+        // self-connection allowed? We'll allow it.
+      }
+      openEdgeDialog(null, state.connect.sourceId, state.connect.targetId);
+      // reset pending selection after dialog
+      state.connect.enabled=false; state.connect.phase=0; state.connect.sourceId=null; state.connect.targetId=null; updateConnectHint();
+    }
+  } else {
+    selectNode(id);
+  }
+}
+
+function selectNode(id){ state.selectedNodeId = id; state.selectedEdgeId = null; render(); }
+
+$('graphPane').addEventListener('click', ()=>{ if(!state.connect.enabled){ state.selectedNodeId=null; state.selectedEdgeId=null; render(); } });
+
+$('addNodeBtn').addEventListener('click', ()=> addNode());
+
+$('connectBtn').addEventListener('click', ()=>{
+  state.connect.enabled = !state.connect.enabled; state.connect.phase = 0; state.connect.sourceId=null; state.connect.targetId=null; updateConnectHint();
+});
+function updateConnectHint(){
+  $('connectHint').style.display = state.connect.enabled ? 'inline-flex' : 'none';
+  $('connectBtn').classList.toggle('primary', state.connect.enabled);
+}
+
+// ====== Edge Dialog ======
+let dialogEdgeId=null, dialogFrom=null, dialogTo=null;
+function openEdgeDialog(edgeId=null, fromId, toId){
+  dialogEdgeId=edgeId; dialogFrom=fromId; dialogTo=toId;
+  const e = edgeId ? state.edges.find(x=>x.id===edgeId) : {required:0,dTarget:1,dSelf:-1};
+  $('reqInput').value = e.required; $('deltaTargetInput').value = e.dTarget; $('deltaSelfInput').value = e.dSelf;
+  overlay.style.display='flex';
+}
+$('cancelEdgeBtn').addEventListener('click', ()=> overlay.style.display='none');
+$('saveEdgeBtn').addEventListener('click', ()=>{
+  const required = parseFloat($('reqInput').value)||0;
+  const dTarget = parseFloat($('deltaTargetInput').value)||0;
+  const dSelf = parseFloat($('deltaSelfInput').value)||0;
+  if(dialogEdgeId){
+    const e = state.edges.find(x=>x.id===dialogEdgeId);
+    if(e){ e.required=required; e.dTarget=dTarget; e.dSelf=dSelf; }
+  } else {
+    addEdge(dialogFrom, dialogTo, required, dTarget, dSelf);
+  }
+  overlay.style.display='none';
+  render();
+});
+
+// ====== Inspector & Edge List ======
+function renderInspector(){
+  const id = state.selectedNodeId;
+  const noSel = $('noSelection');
+  const form = $('stockForm');
+  if(!id){ noSel.style.display='block'; form.style.display='none'; return; }
+  noSel.style.display='none'; form.style.display='block';
+  const n = getNode(id);
+  $('stockName').value = n.name;
+  $('stockInitial').value = n.initial;
+}
+$('stockName').addEventListener('input', (e)=>{ const n=getNode(state.selectedNodeId); if(n){ n.name=e.target.value; render(); } });
+$('stockInitial').addEventListener('input', (e)=>{ const n=getNode(state.selectedNodeId); if(n){ n.initial=parseFloat(e.target.value)||0; } });
+$('deleteNodeBtn').addEventListener('click', ()=>{ if(state.selectedNodeId){ if(confirm('Delete this stock and its connections?')) deleteNode(state.selectedNodeId); }});
+
+function renderEdgesList(){
+  const wrap = $('edgesList');
+  if(!state.selectedNodeId){ wrap.innerHTML = '<span class="muted">Select a stock to see & edit its connections.</span>'; return; }
+  const list = getEdgesFrom(state.selectedNodeId);
+  if(!list.length){ wrap.innerHTML = '<span class="muted">No outgoing connections. Use "Connect Stocks" above.</span>'; return; }
+
+  wrap.innerHTML = '';
+  for(const e of list){
+    const row = document.createElement('div'); row.className='edgeItem';
+    const toNode = getNode(e.to);
+    row.innerHTML = `
+      <div><b>→ ${toNode?toNode.name:e.to}</b></div>
+      <div class="muted">Require ≥ ${fmt(e.required)} | Δtarget ${fmt(e.dTarget)} /tick | Δself ${fmt(e.dSelf)} /tick</div>
+      <div class="actions" style="margin-top:.4rem">
+        <button data-eid="${e.id}" class="editEdge">Edit</button>
+        <button data-eid="${e.id}" class="delEdge" style="background:#3a1e1e;border-color:#5b2a2a">Delete</button>
+      </div>`;
+    wrap.appendChild(row);
+  }
+  wrap.querySelectorAll('.editEdge').forEach(btn=> btn.addEventListener('click', (ev)=>{
+    const id = ev.currentTarget.getAttribute('data-eid');
+    const e = state.edges.find(x=>x.id===id);
+    openEdgeDialog(e.id, e.from, e.to);
+  }));
+  wrap.querySelectorAll('.delEdge').forEach(btn=> btn.addEventListener('click', (ev)=>{
+    const id = ev.currentTarget.getAttribute('data-eid');
+    if(confirm('Delete this connection?')) deleteEdge(id);
+  }));
+}
+
+// ====== Simulation ======
+$('simulateBtn').addEventListener('click', ()=>{
+  state.sim.dt = clamp(parseFloat($('dt').value)||0.1, 0.01, 999);
+  state.sim.duration = clamp(parseInt($('duration').value)||10, 1, 24*3600);
+  runSimulation();
+});
+
+function runSimulation(){
+  const {dt, duration} = state.sim;
+  const steps = Math.floor(duration/dt)+1; state.sim.steps = steps; state.sim.timeIndex=0;
+  // init value arrays
+  for(const n of state.nodes){ n.values = new Array(steps).fill(0); n.values[0] = Number(n.initial)||0; }
+  // iterate
+  for(let t=1; t<steps; t++){
+    // carry forward previous values
+    for(const n of state.nodes){ n.values[t] = n.values[t-1]; }
+    // apply each edge based on source at t-1
+    for(const e of state.edges){
+      const src = getNode(e.from); const dst = getNode(e.to); if(!src || !dst) continue;
+      const srcValPrev = src.values[t-1];
+      if(srcValPrev >= e.required){
+        dst.values[t] += e.dTarget;
+        src.values[t] += e.dSelf;
+      }
+    }
+  }
+  $('timeSlider').max = String(steps-1);
+  $('timeSlider').value = '0';
+  updateTimeLabel();
+  render();
+}
+
+function updateAtTime(idx){
+  state.sim.timeIndex = clamp(Math.floor(idx), 0, state.sim.steps?state.sim.steps-1:0);
+  render();
+}
+
+$('timeSlider').addEventListener('input', (e)=> updateAtTime(Number(e.target.value)) );
+
+function updateTimeLabel(){
+  const t = state.sim.timeIndex * state.sim.dt;
+  $('timeLabel').textContent = `t=${t.toFixed(2)}s`;
+}
+
+// ====== Playback ======
+let rafId = null, lastTs = 0, accum = 0;
+$('speed').addEventListener('change', (e)=>{ state.sim.speed = parseFloat(e.target.value)||1; });
+$('playBtn').addEventListener('click', startPlayback);
+$('pauseBtn').addEventListener('click', stopPlayback);
+$('stepFwdBtn').addEventListener('click', ()=> step(+1));
+$('stepBackBtn').addEventListener('click', ()=> step(-1));
+
+function startPlayback(){ if(state.sim.playing) return; state.sim.playing=true; lastTs=0; accum=0; $('playBtn').disabled=true; $('pauseBtn').disabled=false; loop(); }
+function stopPlayback(){ state.sim.playing=false; $('playBtn').disabled=false; $('pauseBtn').disabled=true; if(rafId){ cancelAnimationFrame(rafId); rafId=null; } }
+function loop(ts){
+  if(!state.sim.playing){ return; }
+  if(!lastTs) lastTs = ts || performance.now();
+  const now = ts || performance.now();
+  const frameMs = (state.sim.dt*1000)/(state.sim.speed||1);
+  accum += (now - lastTs); lastTs = now;
+  while(accum >= frameMs){ accum -= frameMs; step(+1); if(!state.sim.playing) return; }
+  rafId = requestAnimationFrame(loop);
+}
+function step(dir){
+  if(!state.sim.steps) return;
+  const next = clamp(state.sim.timeIndex + dir, 0, state.sim.steps-1);
+  state.sim.timeIndex = next;
+  $('timeSlider').value = String(next);
+  updateTimeLabel();
+  render();
+  if(next===state.sim.steps-1 && state.sim.playing){ stopPlayback(); }
+}
+
+// ====== Chart ======
+function drawChart(){
+  const svgC = $('chart');
+  const w = svgC.clientWidth || 360; const h = svgC.clientHeight || 220;
+  svgC.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svgC.innerHTML = '';
+
+  const node = state.selectedNodeId ? getNode(state.selectedNodeId) : null;
+  if(!node || !node.values || !node.values.length){
+    // empty background grid
+    drawGrid(svgC, w, h, 6, 4);
+    return;
+  }
+  drawGrid(svgC, w, h, 6, 4);
+  const values = node.values;
+  const maxV = Math.max(...values);
+  const minV = Math.min(...values);
+  const pad = 28; // for axes labels
+
+  const xScale = (i)=> pad + (i/(values.length-1))*(w-pad-10);
+  const yScale = (v)=> {
+    if(maxV===minV){ return h/2; }
+    return h - pad - ((v - minV)/(maxV - minV))*(h - 2*pad);
+  };
+
+  // Path
+  let d = '';
+  for(let i=0;i<values.length;i++){
+    const x=xScale(i), y=yScale(values[i]);
+    d += (i===0?`M ${x} ${y}`:` L ${x} ${y}`);
+  }
+  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d', d);
+  path.setAttribute('fill','none'); path.setAttribute('stroke','#6ea8ff'); path.setAttribute('stroke-width','2');
+  svgC.appendChild(path);
+
+  // Current time marker
+  const ti = state.sim.timeIndex;
+  const x = xScale(ti);
+  const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+  line.setAttribute('x1', x); line.setAttribute('x2', x); line.setAttribute('y1', 8); line.setAttribute('y2', h-8);
+  line.setAttribute('stroke', '#2ec27e'); line.setAttribute('stroke-dasharray', '4 4');
+  svgC.appendChild(line);
+
+  // Axes labels
+  const lblY1 = makeText(`${fmt(maxV)}`, 6, 18, 'start');
+  const lblY2 = makeText(`${fmt(minV)}`, 6, h-10, 'start');
+  svgC.appendChild(lblY1); svgC.appendChild(lblY2);
+
+  // Legend
+  const legend = $('legend'); legend.innerHTML = '';
+  const chip = document.createElement('span'); chip.className='chip'; chip.innerHTML = `<span style="display:inline-block;width:10px;height:10px;background:#6ea8ff;border-radius:2px"></span> ${node.name}`;
+  legend.appendChild(chip);
+}
+
+function drawGrid(svgC, w, h, xDiv=6, yDiv=4){
+  // background rect
+  const bg = document.createElementNS('http://www.w3.org/2000/svg','rect');
+  bg.setAttribute('x',0); bg.setAttribute('y',0); bg.setAttribute('width',w); bg.setAttribute('height',h);
+  bg.setAttribute('fill','var(--panel-2)'); bg.setAttribute('stroke','var(--line)');
+  svgC.appendChild(bg);
+  for(let i=1;i<xDiv;i++){
+    const x = Math.round((w/iDiv(xDiv))*i);
+    const g = document.createElementNS('http://www.w3.org/2000/svg','line');
+    g.setAttribute('x1',x); g.setAttribute('x2',x); g.setAttribute('y1',0); g.setAttribute('y2',h);
+    g.setAttribute('stroke','var(--line)'); g.setAttribute('stroke-width','1'); g.setAttribute('opacity','.5');
+    svgC.appendChild(g);
+  }
+  for(let j=1;j<yDiv;j++){
+    const y = Math.round((h/iDiv(yDiv))*j);
+    const g = document.createElementNS('http://www.w3.org/2000/svg','line');
+    g.setAttribute('x1',0); g.setAttribute('x2',w); g.setAttribute('y1',y); g.setAttribute('y2',y);
+    g.setAttribute('stroke','var(--line)'); g.setAttribute('stroke-width','1'); g.setAttribute('opacity','.5');
+    svgC.appendChild(g);
+  }
+}
+function iDiv(n){ return n<=0?1:n; }
+function makeText(str, x, y, anchor='middle'){
+  const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+  t.textContent = str; t.setAttribute('x',x); t.setAttribute('y',y); t.setAttribute('fill','var(--muted)'); t.setAttribute('font-size','12'); t.setAttribute('text-anchor',anchor);
+  return t;
+}
+
+// ===== Utilities =====
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+function fmt(n){ return Number(n).toFixed(2); }
+
+// ===== Initialize with a couple nodes =====
+addNode(140,140); getNode(state.nodes[0].id).name = 'A'; getNode(state.nodes[0].id).initial = 100;
+addNode(420,220); getNode(state.nodes[1].id).name = 'B'; getNode(state.nodes[1].id).initial = 0;
+addEdge(state.nodes[0].id, state.nodes[1].id, /*required*/20, /*dTarget*/+2, /*dSelf*/-1);
+runSimulation();
+
+</script>
+</body>
+</html>
