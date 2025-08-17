@@ -6,7 +6,7 @@
   <title>Stock Graph Simulator</title>
   <style>
     :root{
-      --bg:#0f1220; --panel:#181c2f; --panel-2:#12162a; --text:#e7ecff; --muted:#95a0c9; --accent:#6ea8ff; --accent-2:#9e7bff;
+      --bg:#0f1220; --panel:#181c2f; --panel-2:#12162a; --text:#eef3ff; --muted:#95a0c9; --accent:#6ea8ff; --accent-2:#9e7bff;
       --ok:#2ec27e; --warn:#f5c542; --bad:#ff6b6b; --line:#283053;
     }
     *{box-sizing:border-box}
@@ -21,7 +21,7 @@
     /* Toolbar */
     #toolbar{
       display:flex; align-items:center; gap:.6rem; padding:.6rem 1rem; background:var(--panel); border-bottom:1px solid var(--line);
-      position:sticky; top:0; z-index:2;
+      position:sticky; top:0; z-index:2; flex-wrap:wrap;
     }
     #toolbar .group{display:flex; align-items:center; gap:.5rem; background:var(--panel-2); padding:.4rem .6rem; border:1px solid var(--line); border-radius:12px;}
     button, select, input[type="number"], input[type="text"]{
@@ -31,7 +31,7 @@
     button.primary{background:linear-gradient(180deg, #233569, #1b2a55); border-color:#2c3a68}
     button:disabled{opacity:.5; cursor:not-allowed}
 
-    .main{display:grid; grid-template-columns: 1fr 380px; gap:0; flex:1; min-height:0;}
+    .main{display:grid; grid-template-columns: 1fr 420px; gap:0; flex:1; min-height:0;}
     #graphPane{position:relative; background:#0a0e20; border-right:1px solid var(--line);}
     #graph{width:100%; height:100%; display:block;}
 
@@ -48,10 +48,13 @@
     .node rect{fill:url(#nodeGrad); stroke:#3a4a7a; stroke-width:1.5px; rx:12; ry:12;}
     .node.selected rect{stroke:var(--accent); filter: drop-shadow(0 0 8px rgba(110,168,255,.25));}
     .node text{pointer-events:none; font-size:12px}
-    .node .title{font-weight:600;}
+    .node .title{font-weight:700; fill:#ffffff; paint-order:stroke fill; stroke:#0008; stroke-width:1px;}
     .node .value{fill:#c6d3ff}
     .edge-path{stroke:#6272a4; stroke-width:2; fill:none}
     .edge-path.active{stroke:var(--ok)}
+    .edge-label{font-size:11px; fill:#c8d4ff; paint-order:stroke fill; stroke:#0008; stroke-width:1px}
+    .edge-label.minus{fill:var(--bad)}
+    .edge-label.plus{fill:var(--ok)}
 
     /* Edge list */
     .edgeItem{background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:.5rem; margin:.4rem 0}
@@ -62,7 +65,7 @@
     input[type="range"]{width:100%}
 
     /* Chart */
-    #chart{width:100%; height:220px; background:var(--panel-2); border:1px solid var(--line); border-radius:12px}
+    #chart{width:100%; height:260px; background:var(--panel-2); border:1px solid var(--line); border-radius:12px}
     #legend{display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.4rem}
 
     /* Overlay dialog */
@@ -87,8 +90,17 @@
       <input type="number" id="dt" min="0.01" step="0.01" value="0.5" style="width:80px">
       <button id="simulateBtn" class="primary">Simulate</button>
     </div>
+    <div class="group">
+      <button id="undoBtn" title="Ctrl+Z">Undo</button>
+      <button id="redoBtn" title="Ctrl+Y">Redo</button>
+    </div>
+    <div class="group">
+      <button id="saveBtn">Save JSON</button>
+      <input type="file" id="loadFile" accept="application/json" style="display:none" />
+      <button id="loadBtn">Load JSON</button>
+    </div>
     <div class="group" style="margin-left:auto">
-      <span class="muted">Tip: Select a stock to edit & see its chart</span>
+      <span class="muted">Tip: Shift‑click to multi‑select and layer charts</span>
     </div>
   </div>
 
@@ -159,6 +171,7 @@
       <div class="section" id="inspector">
         <h3>Stock Inspector</h3>
         <div id="noSelection" class="muted">No stock selected.</div>
+        <div id="multiSelection" class="muted" style="display:none"></div>
         <div id="stockForm" style="display:none">
           <div class="row">
             <label>Name</label>
@@ -193,11 +206,20 @@
 const state = {
   nodes: [],       // {id, name, initial, x, y, values: number[]}
   edges: [],       // {id, from, to, required, dTarget, dSelf}
-  selectedNodeId: null,
+  selectedIds: new Set(),
   selectedEdgeId: null,
   sim: { dt: 0.5, duration: 60, steps: 0, timeIndex: 0, playing:false, speed:1 },
   connect: { enabled:false, phase:0, sourceId:null, targetId:null }
 };
+
+// Undo/Redo stacks
+const history = []; const future = [];
+function snapshot(){ return JSON.parse(JSON.stringify({nodes:state.nodes, edges:state.edges, sim:{...state.sim}})); }
+function restore(s){ state.nodes = s.nodes; state.edges = s.edges; state.sim = {...state.sim, ...s.sim}; render(); }
+function pushHistory(){ history.push(snapshot()); if(history.length>200) history.shift(); future.length = 0; updateUndoButtons(); }
+function undo(){ if(!history.length) return; future.push(snapshot()); const prev = history.pop(); restore(prev); updateUndoButtons(); }
+function redo(){ if(!future.length) return; history.push(snapshot()); const next = future.pop(); restore(next); updateUndoButtons(); }
+function updateUndoButtons(){ $('undoBtn').disabled = history.length===0; $('redoBtn').disabled = future.length===0; }
 
 const svg = document.getElementById('graph');
 const gNodes = document.getElementById('nodes');
@@ -212,31 +234,31 @@ function uid(prefix='id'){ return prefix + (_idCounter++); }
 
 // ====== Graph Helpers ======
 function addNode(x=120+Math.random()*260, y=120+Math.random()*180){
+  pushHistory();
   const id = uid('n');
   const node = { id, name:`Stock ${state.nodes.length+1}`, initial: 100, x, y, values: [] };
   state.nodes.push(node);
-  selectNode(id);
-  render();
+  selectOnly(id);
+  render(); scheduleSim();
 }
 
 function deleteNode(id){
+  pushHistory();
   const idx = state.nodes.findIndex(n=>n.id===id);
   if(idx>=0){ state.nodes.splice(idx,1); }
   state.edges = state.edges.filter(e=>e.from!==id && e.to!==id);
-  if(state.selectedNodeId===id) state.selectedNodeId=null;
-  render();
+  state.selectedIds.delete(id);
+  render(); scheduleSim();
 }
 
 function addEdge(from, to, required=0, dTarget=1, dSelf=-1){
+  pushHistory();
   const id = uid('e');
   state.edges.push({id, from, to, required, dTarget, dSelf});
-  render();
+  render(); scheduleSim();
 }
 
-function deleteEdge(id){
-  state.edges = state.edges.filter(e=>e.id!==id);
-  render();
-}
+function deleteEdge(id){ pushHistory(); state.edges = state.edges.filter(e=>e.id!==id); render(); scheduleSim(); }
 
 function getNode(id){ return state.nodes.find(n=>n.id===id); }
 function getEdgesFrom(id){ return state.edges.filter(e=>e.from===id); }
@@ -256,7 +278,7 @@ function renderNodes(){
   for(const node of state.nodes){
     const g = document.createElementNS('http://www.w3.org/2000/svg','g');
     g.classList.add('node');
-    if(node.id===state.selectedNodeId) g.classList.add('selected');
+    if(state.selectedIds.has(node.id)) g.classList.add('selected');
     g.setAttribute('data-id', node.id);
     g.setAttribute('transform', `translate(${node.x},${node.y})`);
 
@@ -312,25 +334,39 @@ function renderEdges(){
       path.setAttribute('marker-end','url(#arrowActive)');
     }
 
-    // Hover tooltip
-    path.addEventListener('mouseenter', ()=>{
-      path.setAttribute('stroke-width','3');
-    });
-    path.addEventListener('mouseleave', ()=>{
-      path.setAttribute('stroke-width','2');
-    });
-
     // Click to select edge via its src node's list
     path.addEventListener('click', (ev)=>{
       ev.stopPropagation();
-      state.selectedNodeId = e.from;
+      selectOnly(e.from); // focus source
       state.selectedEdgeId = e.id;
       renderInspector();
       renderEdgesList();
     });
 
     gEdges.appendChild(path);
+
+    // +/- labels: near source for dSelf, near target for dTarget
+    const srcT = 0.15, dstT = 0.85;
+    const pSrc = quadPoint(s, {x:mx,y:my}, d, srcT);
+    const pDst = quadPoint(s, {x:mx,y:my}, d, dstT);
+    const labSrc = document.createElementNS('http://www.w3.org/2000/svg','text');
+    labSrc.setAttribute('x', pSrc.x); labSrc.setAttribute('y', pSrc.y-6);
+    labSrc.setAttribute('class', 'edge-label ' + (e.dSelf>=0?'plus':'minus'));
+    labSrc.textContent = e.dSelf>=0?'+':'−';
+    gEdges.appendChild(labSrc);
+
+    const labDst = document.createElementNS('http://www.w3.org/2000/svg','text');
+    labDst.setAttribute('x', pDst.x); labDst.setAttribute('y', pDst.y-6);
+    labDst.setAttribute('class', 'edge-label ' + (e.dTarget>=0?'plus':'minus'));
+    labDst.textContent = e.dTarget>=0?'+':'−';
+    gEdges.appendChild(labDst);
   }
+}
+
+function quadPoint(p0, p1, p2, t){
+  const x = (1-t)*(1-t)*p0.x + 2*(1-t)*t*p1.x + t*t*p2.x;
+  const y = (1-t)*(1-t)*p0.y + 2*(1-t)*t*p1.y + t*t*p2.y;
+  return {x,y};
 }
 
 // ====== Dragging ======
@@ -339,6 +375,8 @@ function onNodeMouseDown(ev){
   const g = ev.currentTarget;
   const id = g.getAttribute('data-id');
   const n = getNode(id);
+  // prepare undo and drag
+  pushHistory();
   drag.active = true; drag.id = id;
   const pt = clientToSvg(ev.clientX, ev.clientY);
   drag.offX = pt.x - n.x; drag.offY = pt.y - n.y;
@@ -367,21 +405,20 @@ function onNodeClick(ev){
       state.connect.sourceId = id; state.connect.phase = 1; updateConnectHint();
     } else if(state.connect.phase===1){
       state.connect.targetId = id;
-      if(state.connect.targetId === state.connect.sourceId){
-        // self-connection allowed? We'll allow it.
-      }
       openEdgeDialog(null, state.connect.sourceId, state.connect.targetId);
       // reset pending selection after dialog
       state.connect.enabled=false; state.connect.phase=0; state.connect.sourceId=null; state.connect.targetId=null; updateConnectHint();
     }
   } else {
-    selectNode(id);
+    if(ev.shiftKey){ toggleSelect(id); }
+    else { selectOnly(id); }
   }
 }
 
-function selectNode(id){ state.selectedNodeId = id; state.selectedEdgeId = null; render(); }
+function selectOnly(id){ state.selectedIds.clear(); if(id) state.selectedIds.add(id); state.selectedEdgeId = null; render(); }
+function toggleSelect(id){ if(state.selectedIds.has(id)) state.selectedIds.delete(id); else state.selectedIds.add(id); state.selectedEdgeId=null; render(); }
 
-$('graphPane').addEventListener('click', ()=>{ if(!state.connect.enabled){ state.selectedNodeId=null; state.selectedEdgeId=null; render(); } });
+$('graphPane').addEventListener('click', ()=>{ if(!state.connect.enabled){ state.selectedIds.clear(); state.selectedEdgeId=null; render(); } });
 
 $('addNodeBtn').addEventListener('click', ()=> addNode());
 
@@ -407,34 +444,42 @@ $('saveEdgeBtn').addEventListener('click', ()=>{
   const dTarget = parseFloat($('deltaTargetInput').value)||0;
   const dSelf = parseFloat($('deltaSelfInput').value)||0;
   if(dialogEdgeId){
+    pushHistory();
     const e = state.edges.find(x=>x.id===dialogEdgeId);
     if(e){ e.required=required; e.dTarget=dTarget; e.dSelf=dSelf; }
   } else {
     addEdge(dialogFrom, dialogTo, required, dTarget, dSelf);
   }
   overlay.style.display='none';
-  render();
+  render(); scheduleSim();
 });
 
 // ====== Inspector & Edge List ======
 function renderInspector(){
-  const id = state.selectedNodeId;
+  const ids = Array.from(state.selectedIds);
   const noSel = $('noSelection');
+  const multiSel = $('multiSelection');
   const form = $('stockForm');
-  if(!id){ noSel.style.display='block'; form.style.display='none'; return; }
-  noSel.style.display='none'; form.style.display='block';
-  const n = getNode(id);
+  if(ids.length===0){ noSel.style.display='block'; multiSel.style.display='none'; form.style.display='none'; return; }
+  if(ids.length>1){
+    noSel.style.display='none'; form.style.display='none'; multiSel.style.display='block';
+    multiSel.textContent = `${ids.length} stocks selected.`;
+    return;
+  }
+  noSel.style.display='none'; multiSel.style.display='none'; form.style.display='block';
+  const n = getNode(ids[0]);
   $('stockName').value = n.name;
   $('stockInitial').value = n.initial;
 }
-$('stockName').addEventListener('input', (e)=>{ const n=getNode(state.selectedNodeId); if(n){ n.name=e.target.value; render(); } });
-$('stockInitial').addEventListener('input', (e)=>{ const n=getNode(state.selectedNodeId); if(n){ n.initial=parseFloat(e.target.value)||0; } });
-$('deleteNodeBtn').addEventListener('click', ()=>{ if(state.selectedNodeId){ if(confirm('Delete this stock and its connections?')) deleteNode(state.selectedNodeId); }});
+$('stockName').addEventListener('input', (e)=>{ const ids=Array.from(state.selectedIds); if(ids.length===1){ const n=getNode(ids[0]); if(n){ n.name=e.target.value; render(); } }});
+$('stockInitial').addEventListener('change', (e)=>{ const ids=Array.from(state.selectedIds); if(ids.length===1){ pushHistory(); const n=getNode(ids[0]); if(n){ n.initial=parseFloat(e.target.value)||0; render(); scheduleSim(); } }});
+$('deleteNodeBtn').addEventListener('click', ()=>{ const ids=Array.from(state.selectedIds); if(ids.length===1){ if(confirm('Delete this stock and its connections?')) deleteNode(ids[0]); }});
 
 function renderEdgesList(){
   const wrap = $('edgesList');
-  if(!state.selectedNodeId){ wrap.innerHTML = '<span class="muted">Select a stock to see & edit its connections.</span>'; return; }
-  const list = getEdgesFrom(state.selectedNodeId);
+  const ids = Array.from(state.selectedIds);
+  if(ids.length!==1){ wrap.innerHTML = '<span class="muted">Select a single stock to see & edit its connections.</span>'; return; }
+  const list = getEdgesFrom(ids[0]);
   if(!list.length){ wrap.innerHTML = '<span class="muted">No outgoing connections. Use "Connect Stocks" above.</span>'; return; }
 
   wrap.innerHTML = '';
@@ -462,11 +507,14 @@ function renderEdgesList(){
 }
 
 // ====== Simulation ======
-$('simulateBtn').addEventListener('click', ()=>{
+$('simulateBtn').addEventListener('click', ()=>{ applySimInputs(); runSimulation(); });
+
+function applySimInputs(){
   state.sim.dt = clamp(parseFloat($('dt').value)||0.1, 0.01, 999);
   state.sim.duration = clamp(parseInt($('duration').value)||10, 1, 24*3600);
-  runSimulation();
-});
+}
+
+let simTimer=null; function scheduleSim(){ clearTimeout(simTimer); applySimInputs(); simTimer=setTimeout(runSimulation, 150); }
 
 function runSimulation(){
   const {dt, duration} = state.sim;
@@ -534,59 +582,57 @@ function step(dir){
   if(next===state.sim.steps-1 && state.sim.playing){ stopPlayback(); }
 }
 
-// ====== Chart ======
+// ====== Chart (multi‑series) ======
+const palette = ['#6ea8ff', '#9e7bff', '#2ec27e', '#f5c542', '#ff6b6b', '#ffa3d7', '#74c0fc', '#e599f7'];
 function drawChart(){
   const svgC = $('chart');
-  const w = svgC.clientWidth || 360; const h = svgC.clientHeight || 220;
+  const w = svgC.clientWidth || 360; const h = svgC.clientHeight || 260;
   svgC.setAttribute('viewBox', `0 0 ${w} ${h}`);
   svgC.innerHTML = '';
 
-  const node = state.selectedNodeId ? getNode(state.selectedNodeId) : null;
-  if(!node || !node.values || !node.values.length){
-    // empty background grid
-    drawGrid(svgC, w, h, 6, 4);
-    return;
-  }
+  const ids = Array.from(state.selectedIds);
+  // empty grid if no selection
   drawGrid(svgC, w, h, 6, 4);
-  const values = node.values;
-  const maxV = Math.max(...values);
-  const minV = Math.min(...values);
-  const pad = 28; // for axes labels
+  if(ids.length===0){ $('legend').innerHTML=''; return; }
 
-  const xScale = (i)=> pad + (i/(values.length-1))*(w-pad-10);
-  const yScale = (v)=> {
-    if(maxV===minV){ return h/2; }
-    return h - pad - ((v - minV)/(maxV - minV))*(h - 2*pad);
-  };
+  // compute global min/max
+  let minV=Infinity, maxV=-Infinity, steps=0;
+  const series = ids.map((id)=>{
+    const n = getNode(id); const vals = (n && n.values && n.values.length)? n.values : [n?n.initial:0];
+    steps = Math.max(steps, vals.length); for(const v of vals){ if(v<minV)minV=v; if(v>maxV)maxV=v; }
+    return {node:n, values:vals};
+  });
+  if(minV===Infinity){ minV=0; maxV=1; }
+  const pad = 28;
+  const xScale = (i)=> pad + (i/(steps-1))*(w-pad-10);
+  const yScale = (v)=> maxV===minV ? h/2 : (h - pad - ((v - minV)/(maxV - minV))*(h - 2*pad));
 
-  // Path
-  let d = '';
-  for(let i=0;i<values.length;i++){
-    const x=xScale(i), y=yScale(values[i]);
-    d += (i===0?`M ${x} ${y}`:` L ${x} ${y}`);
-  }
-  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-  path.setAttribute('d', d);
-  path.setAttribute('fill','none'); path.setAttribute('stroke','#6ea8ff'); path.setAttribute('stroke-width','2');
-  svgC.appendChild(path);
+  series.forEach((s, idx)=>{
+    let d = '';
+    for(let i=0;i<s.values.length;i++){
+      const x=xScale(i), y=yScale(s.values[i]);
+      d += (i===0?`M ${x} ${y}`:` L ${x} ${y}`);
+    }
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill','none'); path.setAttribute('stroke', palette[idx%palette.length]); path.setAttribute('stroke-width','2');
+    svgC.appendChild(path);
+  });
 
   // Current time marker
   const ti = state.sim.timeIndex;
-  const x = xScale(ti);
+  const x = xScale(Math.min(ti, steps-1));
   const line = document.createElementNS('http://www.w3.org/2000/svg','line');
   line.setAttribute('x1', x); line.setAttribute('x2', x); line.setAttribute('y1', 8); line.setAttribute('y2', h-8);
   line.setAttribute('stroke', '#2ec27e'); line.setAttribute('stroke-dasharray', '4 4');
   svgC.appendChild(line);
 
-  // Axes labels
-  const lblY1 = makeText(`${fmt(maxV)}`, 6, 18, 'start');
-  const lblY2 = makeText(`${fmt(minV)}`, 6, h-10, 'start');
-  svgC.appendChild(lblY1); svgC.appendChild(lblY2);
-
   // Legend
   const legend = $('legend'); legend.innerHTML = '';
-  const chip = document.createElement('span'); chip.className='chip'; chip.innerHTML = `<span style="display:inline-block;width:10px;height:10px;background:#6ea8ff;border-radius:2px"></span> ${node.name}`;
-  legend.appendChild(chip);
+  series.forEach((s, idx)=>{
+    const chip = document.createElement('span'); chip.className='chip'; chip.innerHTML = `<span style="display:inline-block;width:10px;height:10px;background:${palette[idx%palette.length]};border-radius:2px"></span> ${s.node?s.node.name:'Unknown'}`;
+    legend.appendChild(chip);
+  });
 }
 
 function drawGrid(svgC, w, h, xDiv=6, yDiv=4){
@@ -611,20 +657,54 @@ function drawGrid(svgC, w, h, xDiv=6, yDiv=4){
   }
 }
 function iDiv(n){ return n<=0?1:n; }
-function makeText(str, x, y, anchor='middle'){
-  const t = document.createElementNS('http://www.w3.org/2000/svg','text');
-  t.textContent = str; t.setAttribute('x',x); t.setAttribute('y',y); t.setAttribute('fill','var(--muted)'); t.setAttribute('font-size','12'); t.setAttribute('text-anchor',anchor);
-  return t;
-}
+
+// ===== Save / Load JSON =====
+$('saveBtn').addEventListener('click', ()=>{
+  const data = JSON.stringify({ nodes: state.nodes.map(({values, ...rest})=>rest), edges: state.edges, sim: {dt:state.sim.dt, duration:state.sim.duration} }, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'stock-graph.json'; a.click();
+  setTimeout(()=> URL.revokeObjectURL(a.href), 1000);
+});
+$('loadBtn').addEventListener('click', ()=> $('loadFile').click());
+$('loadFile').addEventListener('change', (e)=>{
+  const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const data = JSON.parse(reader.result);
+      pushHistory();
+      state.nodes = (data.nodes||[]).map(n=>({...n, values:[]}));
+      state.edges = data.edges||[];
+      if(data.sim){ $('dt').value = data.sim.dt ?? $('dt').value; $('duration').value = data.sim.duration ?? $('duration').value; }
+      scheduleSim();
+    }catch(err){ alert('Invalid JSON: '+err.message); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
 
 // ===== Utilities =====
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
 function fmt(n){ return Number(n).toFixed(2); }
 
+// ===== Keyboard (Undo/Redo) =====
+$('undoBtn').addEventListener('click', undo);
+$('redoBtn').addEventListener('click', redo);
+window.addEventListener('keydown', (e)=>{
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){ e.preventDefault(); if(e.shiftKey) redo(); else undo(); }
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='y'){ e.preventDefault(); redo(); }
+});
+
 // ===== Initialize with a couple nodes =====
-addNode(140,140); getNode(state.nodes[0].id).name = 'A'; getNode(state.nodes[0].id).initial = 100;
-addNode(420,220); getNode(state.nodes[1].id).name = 'B'; getNode(state.nodes[1].id).initial = 0;
-addEdge(state.nodes[0].id, state.nodes[1].id, /*required*/20, /*dTarget*/+2, /*dSelf*/-1);
+function seed(){
+  addNode(140,140); getNode(state.nodes[0].id).name = 'A'; getNode(state.nodes[0].id).initial = 100;
+  addNode(420,220); getNode(state.nodes[1].id).name = 'B'; getNode(state.nodes[1].id).initial = 0;
+  addEdge(state.nodes[0].id, state.nodes[1].id, /*required*/20, /*dTarget*/+2, /*dSelf*/-1);
+}
+
+// seed once without double‑pushing history
+state.nodes = []; state.edges=[]; state.selectedIds.clear();
+_idCounter = 1; history.length=0; future.length=0; updateUndoButtons();
+seed();
 runSimulation();
 
 </script>
