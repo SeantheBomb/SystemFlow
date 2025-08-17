@@ -11,32 +11,23 @@
     }
     *{box-sizing:border-box}
     html,body{height:100%;}
-    body{
-      margin:0; background:linear-gradient(180deg, var(--bg), #0a0d18 40%);
-      color:var(--text); font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
-      user-select:none;
-    }
+    body{ margin:0; background:linear-gradient(180deg, var(--bg), #0a0d18 40%); color:var(--text); font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; user-select:none; }
     #app{display:flex; flex-direction:column; height:100%;}
 
     /* Toolbar */
-    #toolbar{
-      display:flex; align-items:center; gap:.6rem; padding:.6rem 1rem; background:var(--panel); border-bottom:1px solid var(--line);
-      position:sticky; top:0; z-index:2; flex-wrap:wrap;
-    }
+    #toolbar{ display:flex; align-items:center; gap:.6rem; padding:.6rem 1rem; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:2; flex-wrap:wrap; }
     #toolbar .group{display:flex; align-items:center; gap:.5rem; background:var(--panel-2); padding:.4rem .6rem; border:1px solid var(--line); border-radius:12px;}
-    button, select, input[type="number"], input[type="text"]{
-      background:#0c1024; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:.4rem .6rem;
-    }
+    button, select, input[type="number"], input[type="text"]{ background:#0c1024; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:.4rem .6rem; }
     button{cursor:pointer}
     button.primary{background:linear-gradient(180deg, #233569, #1b2a55); border-color:#2c3a68}
     button:disabled{opacity:.5; cursor:not-allowed}
 
-    .main{display:grid; grid-template-columns: 1fr 420px; gap:0; flex:1; min-height:0;}
-    #graphPane{position:relative; background:#0a0e20; border-right:1px solid var(--line);}
+    .main{display:grid; grid-template-columns: 1fr 440px; gap:0; flex:1; min-height:0;}
+    #graphPane{position:relative; background:#0a0e20; border-right:1px solid var(--line);} 
     #graph{width:100%; height:100%; display:block;}
 
     /* Side panel */
-    #sidePane{display:flex; flex-direction:column; min-width:320px; background:var(--panel);}
+    #sidePane{display:flex; flex-direction:column; min-width:320px; background:var(--panel);} 
     .section{border-bottom:1px solid var(--line); padding: .8rem 1rem}
     .section h3{margin:.2rem 0 .6rem 0; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em}
     .row{display:grid; grid-template-columns: 1fr 1fr; gap:.5rem; margin:.35rem 0}
@@ -50,7 +41,8 @@
     .node text{pointer-events:none; font-size:12px}
     .node .title{font-weight:700; fill:#ffffff; paint-order:stroke fill; stroke:#0008; stroke-width:1px;}
     .node .value{fill:#c6d3ff}
-    .edge-path{stroke:#6272a4; stroke-width:2; fill:none}
+
+    .edge-path{stroke:#6c79a8; stroke-width:2; fill:none}
     .edge-path.active{stroke:var(--ok)}
     .edge-label{font-size:11px; fill:#c8d4ff; paint-order:stroke fill; stroke:#0008; stroke-width:1px}
     .edge-label.minus{fill:var(--bad)}
@@ -65,14 +57,17 @@
     input[type="range"]{width:100%}
 
     /* Chart */
-    #chart{width:100%; height:260px; background:var(--panel-2); border:1px solid var(--line); border-radius:12px}
+    #chart{width:100%; height:270px; background:var(--panel-2); border:1px solid var(--line); border-radius:12px}
     #legend{display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.4rem}
 
     /* Overlay dialog */
     #overlay{position:absolute; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:5}
-    #dialog{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:1rem; width:360px}
+    #dialog{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:1rem; width:460px}
     #dialog h4{margin:.2rem 0 .6rem 0}
-    .dialog-actions{display:flex; justify-content:flex-end; gap:.5rem; margin-top:.7rem}
+    .dialog-actions{display:flex; justify-content:space-between; gap:.5rem; margin-top:.7rem}
+    .small{font-size:12px; color:var(--muted)}
+    .grid-2{display:grid; grid-template-columns: 1fr 1fr; gap:.5rem}
+    .grid-3{display:grid; grid-template-columns: 1fr 1fr 1fr; gap:.5rem}
   </style>
 </head>
 <body>
@@ -112,11 +107,12 @@
             <stop offset="0%" stop-color="#1b2450"/>
             <stop offset="100%" stop-color="#131a3a"/>
           </linearGradient>
-          <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" fill="#6272a4"/>
+          <!-- Make arrows obvious & independent of stroke width -->
+          <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="18" markerHeight="12" refX="14" refY="6" orient="auto">
+            <polygon points="0 0, 18 6, 0 12" fill="#6c79a8"/>
           </marker>
-          <marker id="arrowActive" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" fill="#2ec27e"/>
+          <marker id="arrowActive" markerUnits="userSpaceOnUse" markerWidth="18" markerHeight="12" refX="14" refY="6" orient="auto">
+            <polygon points="0 0, 18 6, 0 12" fill="#2ec27e"/>
           </marker>
         </defs>
         <!-- edges under nodes -->
@@ -127,20 +123,56 @@
         <div id="dialog">
           <h4>Configure Connection</h4>
           <div class="row">
+            <label>Label</label>
+            <input type="text" id="edgeLabelInput" placeholder="e.g., cost, hire, conversion"/>
+          </div>
+          <div class="row">
             <label>Required amount (source)</label>
             <input type="number" id="reqInput" step="0.1" value="0">
           </div>
-          <div class="row">
-            <label>Δ to target / tick</label>
-            <input type="number" id="deltaTargetInput" step="0.1" value="1">
+          <hr style="border:none;border-top:1px solid var(--line); margin:.6rem 0"/>
+          <div class="full"><b>Δ to target / tick</b></div>
+          <div class="grid-3">
+            <select id="modeTarget">
+              <option value="constant">Constant</option>
+              <option value="percent-src">% of Source</option>
+              <option value="percent-dst">% of Target</option>
+              <option value="linear-src">Linear a·Source + b</option>
+              <option value="linear-dst">Linear a·Target + b</option>
+            </select>
+            <input type="number" id="valTargetA" step="0.1" placeholder="a / value" />
+            <input type="number" id="valTargetB" step="0.1" placeholder="b (offset)" />
           </div>
-          <div class="row">
-            <label>Δ to source / tick</label>
-            <input type="number" id="deltaSelfInput" step="0.1" value="-1">
+          <div class="grid-2">
+            <input type="number" id="clampTargetMin" step="0.1" placeholder="Clamp min" />
+            <input type="number" id="clampTargetMax" step="0.1" placeholder="Clamp max" />
           </div>
+          <div class="small" id="previewTarget">Preview: –</div>
+
+          <div class="full" style="margin-top:.6rem"><b>Δ to source / tick</b></div>
+          <div class="grid-3">
+            <select id="modeSelf">
+              <option value="constant">Constant</option>
+              <option value="percent-src">% of Source</option>
+              <option value="percent-dst">% of Target</option>
+              <option value="linear-src">Linear a·Source + b</option>
+              <option value="linear-dst">Linear a·Target + b</option>
+            </select>
+            <input type="number" id="valSelfA" step="0.1" placeholder="a / value" />
+            <input type="number" id="valSelfB" step="0.1" placeholder="b (offset)" />
+          </div>
+          <div class="grid-2">
+            <input type="number" id="clampSelfMin" step="0.1" placeholder="Clamp min" />
+            <input type="number" id="clampSelfMax" step="0.1" placeholder="Clamp max" />
+          </div>
+          <div class="small" id="previewSelf">Preview: –</div>
+
           <div class="dialog-actions">
             <button id="cancelEdgeBtn">Cancel</button>
-            <button id="saveEdgeBtn" class="primary">Save</button>
+            <div>
+              <span class="small">Modes: Constant | % | Linear; % and Linear use t−1 values</span>
+              <button id="saveEdgeBtn" class="primary">Save</button>
+            </div>
           </div>
         </div>
       </div>
@@ -205,7 +237,8 @@
 // ====== Data Model ======
 const state = {
   nodes: [],       // {id, name, initial, x, y, values: number[]}
-  edges: [],       // {id, from, to, required, dTarget, dSelf}
+  // Edge now supports dynamic deltas and labels
+  edges: [],       // {id, from, to, required, label, targetDelta:{...}, selfDelta:{...}}
   selectedIds: new Set(),
   selectedEdgeId: null,
   sim: { dt: 0.5, duration: 60, steps: 0, timeIndex: 0, playing:false, speed:1 },
@@ -251,10 +284,12 @@ function deleteNode(id){
   render(); scheduleSim();
 }
 
+function defaultDelta(){ return { mode:'constant', ref:'source', value:0, a:0, b:0, clampMin:null, clampMax:null }; }
+
 function addEdge(from, to, required=0, dTarget=1, dSelf=-1){
   pushHistory();
   const id = uid('e');
-  state.edges.push({id, from, to, required, dTarget, dSelf});
+  state.edges.push({id, from, to, required, label:'', targetDelta:{...defaultDelta(), value:dTarget}, selfDelta:{...defaultDelta(), value:dSelf}});
   render(); scheduleSim();
 }
 
@@ -313,14 +348,30 @@ function renderNodes(){
 
 function nodeCenter(n){ return { x: n.x + 80, y: n.y + 35 }; }
 
+// Compute the intersection point on a rounded-rect border from its center toward a target point
+function rectBorderPoint(cx, cy, w, h, rx, ry, toward){
+  const hw = (w/2) - (rx||0); // inset by corner radius so we don't hit rounded area
+  const hh = (h/2) - (ry||0);
+  let dx = toward.x - cx; let dy = toward.y - cy;
+  if(Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6){ return {x:cx, y:cy}; }
+  const scale = 1/Math.max(Math.abs(dx)/hw, Math.abs(dy)/hh);
+  return { x: cx + dx*scale, y: cy + dy*scale };
+}
+
 function renderEdges(){
   gEdges.innerHTML = '';
   for(const e of state.edges){
     const src = getNode(e.from), dst = getNode(e.to);
     if(!src || !dst) continue;
-    const s = nodeCenter(src), d = nodeCenter(dst);
-    const dx = d.x - s.x; const dy = d.y - s.y; const mx = s.x + dx/2; const my = s.y + dy/2 - 40*Math.sign(dy||1);
-    const pathStr = `M ${s.x} ${s.y} Q ${mx} ${my} ${d.x} ${d.y}`;
+    const sC = nodeCenter(src), dC = nodeCenter(dst);
+
+    // Start/end points at the borders of the source/target rounded rects
+    const sEdge = rectBorderPoint(sC.x, sC.y, 160, 70, 12, 12, dC);
+    const dEdge = rectBorderPoint(dC.x, dC.y, 160, 70, 12, 12, sC);
+
+    const dx = dEdge.x - sEdge.x; const dy = dEdge.y - sEdge.y; const mx = sEdge.x + dx/2; const my = sEdge.y + dy/2 - 40*Math.sign(dy||1);
+    const pathStr = `M ${sEdge.x} ${sEdge.y} Q ${mx} ${my} ${dEdge.x} ${dEdge.y}`;
+
     const path = document.createElementNS('http://www.w3.org/2000/svg','path');
     path.setAttribute('d', pathStr);
     path.setAttribute('class','edge-path');
@@ -329,53 +380,48 @@ function renderEdges(){
     // Active styling if condition met at current time
     const t = state.sim.timeIndex;
     const srcVal = src.values && src.values.length ? src.values[Math.min(t, src.values.length-1)] : src.initial;
-    if(srcVal >= e.required){
-      path.classList.add('active');
-      path.setAttribute('marker-end','url(#arrowActive)');
-    }
+    if(srcVal >= e.required){ path.classList.add('active'); path.setAttribute('marker-end','url(#arrowActive)'); }
 
-    // Click to select edge via its src node's list
-    path.addEventListener('click', (ev)=>{
-      ev.stopPropagation();
-      selectOnly(e.from); // focus source
-      state.selectedEdgeId = e.id;
-      renderInspector();
-      renderEdgesList();
-    });
+    // Click to select edge
+    path.addEventListener('click', (ev)=>{ ev.stopPropagation(); selectOnly(e.from); state.selectedEdgeId = e.id; renderInspector(); renderEdgesList(); });
 
     gEdges.appendChild(path);
 
-    // +/- labels: near source for dSelf, near target for dTarget
-    const srcT = 0.15, dstT = 0.85;
-    const pSrc = quadPoint(s, {x:mx,y:my}, d, srcT);
-    const pDst = quadPoint(s, {x:mx,y:my}, d, dstT);
+    // +/- labels
+    const srcT = 0.15, dstT = 0.80;
+    const pSrc = quadPoint(sEdge, {x:mx,y:my}, dEdge, srcT);
+    const pDst = quadPoint(sEdge, {x:mx,y:my}, dEdge, dstT);
     const labSrc = document.createElementNS('http://www.w3.org/2000/svg','text');
     labSrc.setAttribute('x', pSrc.x); labSrc.setAttribute('y', pSrc.y-6);
-    labSrc.setAttribute('class', 'edge-label ' + (e.dSelf>=0?'plus':'minus'));
-    labSrc.textContent = e.dSelf>=0?'+':'−';
+    labSrc.setAttribute('class', 'edge-label ' + (getDelta(e,'self').sample>=0?'plus':'minus'));
+    labSrc.textContent = getDelta(e,'self').sign;
     gEdges.appendChild(labSrc);
 
     const labDst = document.createElementNS('http://www.w3.org/2000/svg','text');
     labDst.setAttribute('x', pDst.x); labDst.setAttribute('y', pDst.y-6);
-    labDst.setAttribute('class', 'edge-label ' + (e.dTarget>=0?'plus':'minus'));
-    labDst.textContent = e.dTarget>=0?'+':'−';
+    labDst.setAttribute('class', 'edge-label ' + (getDelta(e,'target').sample>=0?'plus':'minus'));
+    labDst.textContent = getDelta(e,'target').sign;
     gEdges.appendChild(labDst);
+
+    // Connection label at midpoint
+    if(e.label){
+      const mid = quadPoint(sEdge, {x:mx,y:my}, dEdge, 0.5);
+      const label = document.createElementNS('http://www.w3.org/2000/svg','text');
+      label.setAttribute('x', mid.x); label.setAttribute('y', mid.y+12);
+      label.setAttribute('class','edge-label');
+      label.setAttribute('text-anchor','middle');
+      label.textContent = e.label;
+      gEdges.appendChild(label);
+    }
   }
 }
 
-function quadPoint(p0, p1, p2, t){
-  const x = (1-t)*(1-t)*p0.x + 2*(1-t)*t*p1.x + t*t*p2.x;
-  const y = (1-t)*(1-t)*p0.y + 2*(1-t)*t*p1.y + t*t*p2.y;
-  return {x,y};
-}
+function quadPoint(p0, p1, p2, t){ const x = (1-t)*(1-t)*p0.x + 2*(1-t)*t*p1.x + t*t*p2.x; const y = (1-t)*(1-t)*p0.y + 2*(1-t)*t*p1.y + t*t*p2.y; return {x,y}; }
 
 // ====== Dragging ======
 let drag = { active:false, id:null, offX:0, offY:0 };
 function onNodeMouseDown(ev){
-  const g = ev.currentTarget;
-  const id = g.getAttribute('data-id');
-  const n = getNode(id);
-  // prepare undo and drag
+  const g = ev.currentTarget; const id = g.getAttribute('data-id'); const n = getNode(id);
   pushHistory();
   drag.active = true; drag.id = id;
   const pt = clientToSvg(ev.clientX, ev.clientY);
@@ -383,36 +429,19 @@ function onNodeMouseDown(ev){
   svg.addEventListener('mousemove', onSvgMouseMove);
   svg.addEventListener('mouseup', onSvgMouseUp);
 }
-function onSvgMouseMove(ev){
-  if(!drag.active) return;
-  const n = getNode(drag.id);
-  const pt = clientToSvg(ev.clientX, ev.clientY);
-  n.x = pt.x - drag.offX; n.y = pt.y - drag.offY;
-  render();
-}
+function onSvgMouseMove(ev){ if(!drag.active) return; const n = getNode(drag.id); const pt = clientToSvg(ev.clientX, ev.clientY); n.x = pt.x - drag.offX; n.y = pt.y - drag.offY; render(); }
 function onSvgMouseUp(){ drag.active=false; svg.removeEventListener('mousemove', onSvgMouseMove); svg.removeEventListener('mouseup', onSvgMouseUp); }
 
-function clientToSvg(cx, cy){
-  const pt = svg.createSVGPoint(); pt.x = cx; pt.y = cy; return pt.matrixTransform(svg.getScreenCTM().inverse());
-}
+function clientToSvg(cx, cy){ const pt = svg.createSVGPoint(); pt.x = cx; pt.y = cy; return pt.matrixTransform(svg.getScreenCTM().inverse()); }
 
 // ====== Selection & Connect ======
 function onNodeClick(ev){
   ev.stopPropagation();
   const id = ev.currentTarget.getAttribute('data-id');
   if(state.connect.enabled){
-    if(state.connect.phase===0){
-      state.connect.sourceId = id; state.connect.phase = 1; updateConnectHint();
-    } else if(state.connect.phase===1){
-      state.connect.targetId = id;
-      openEdgeDialog(null, state.connect.sourceId, state.connect.targetId);
-      // reset pending selection after dialog
-      state.connect.enabled=false; state.connect.phase=0; state.connect.sourceId=null; state.connect.targetId=null; updateConnectHint();
-    }
-  } else {
-    if(ev.shiftKey){ toggleSelect(id); }
-    else { selectOnly(id); }
-  }
+    if(state.connect.phase===0){ state.connect.sourceId = id; state.connect.phase = 1; updateConnectHint(); }
+    else if(state.connect.phase===1){ state.connect.targetId = id; openEdgeDialog(null, state.connect.sourceId, state.connect.targetId); state.connect.enabled=false; state.connect.phase=0; state.connect.sourceId=null; state.connect.targetId=null; updateConnectHint(); }
+  } else { if(ev.shiftKey){ toggleSelect(id); } else { selectOnly(id); } }
 }
 
 function selectOnly(id){ state.selectedIds.clear(); if(id) state.selectedIds.add(id); state.selectedEdgeId = null; render(); }
@@ -421,34 +450,81 @@ function toggleSelect(id){ if(state.selectedIds.has(id)) state.selectedIds.delet
 $('graphPane').addEventListener('click', ()=>{ if(!state.connect.enabled){ state.selectedIds.clear(); state.selectedEdgeId=null; render(); } });
 
 $('addNodeBtn').addEventListener('click', ()=> addNode());
-
-$('connectBtn').addEventListener('click', ()=>{
-  state.connect.enabled = !state.connect.enabled; state.connect.phase = 0; state.connect.sourceId=null; state.connect.targetId=null; updateConnectHint();
-});
-function updateConnectHint(){
-  $('connectHint').style.display = state.connect.enabled ? 'inline-flex' : 'none';
-  $('connectBtn').classList.toggle('primary', state.connect.enabled);
-}
+$('connectBtn').addEventListener('click', ()=>{ state.connect.enabled = !state.connect.enabled; state.connect.phase = 0; state.connect.sourceId=null; state.connect.targetId=null; updateConnectHint(); });
+function updateConnectHint(){ $('connectHint').style.display = state.connect.enabled ? 'inline-flex' : 'none'; $('connectBtn').classList.toggle('primary', state.connect.enabled); }
 
 // ====== Edge Dialog ======
 let dialogEdgeId=null, dialogFrom=null, dialogTo=null;
 function openEdgeDialog(edgeId=null, fromId, toId){
   dialogEdgeId=edgeId; dialogFrom=fromId; dialogTo=toId;
-  const e = edgeId ? state.edges.find(x=>x.id===edgeId) : {required:0,dTarget:1,dSelf:-1};
-  $('reqInput').value = e.required; $('deltaTargetInput').value = e.dTarget; $('deltaSelfInput').value = e.dSelf;
+  const e = edgeId ? state.edges.find(x=>x.id===edgeId) : {required:0,label:'', targetDelta:defaultDelta(), selfDelta:defaultDelta() };
+
+  // Migrate legacy numeric fields if present
+  if(e.dTarget!=null || e.dSelf!=null){ e.targetDelta = {...defaultDelta(), value: Number(e.dTarget||0)}; e.selfDelta = {...defaultDelta(), value: Number(e.dSelf||0)}; delete e.dTarget; delete e.dSelf; }
+
+  $('edgeLabelInput').value = e.label||'';
+  $('reqInput').value = e.required||0;
+
+  // Target
+  setDeltaFields('Target', e.targetDelta);
+  // Self
+  setDeltaFields('Self', e.selfDelta);
+
+  updatePreview();
   overlay.style.display='flex';
 }
+
+function setDeltaFields(kind, cfg){
+  const modeSel = $('mode'+kind); const aEl=$('val'+kind+'A'); const bEl=$('val'+kind+'B');
+  const cMin=$('clamp'+kind+'Min'); const cMax=$('clamp'+kind+'Max');
+  // map cfg to mode value
+  let mode='constant';
+  if(cfg.mode==='percent'){ mode = cfg.ref==='target'?'percent-dst':'percent-src'; }
+  else if(cfg.mode==='linear'){ mode = cfg.ref==='target'?'linear-dst':'linear-src'; }
+  modeSel.value = mode;
+  aEl.value = cfg.mode==='constant' ? (cfg.value??0) : (cfg.mode==='percent'? (cfg.value??0) : (cfg.a??0));
+  bEl.value = cfg.mode==='linear' ? (cfg.b??0) : '';
+  cMin.value = cfg.clampMin??''; cMax.value = cfg.clampMax??'';
+}
+
+function readDeltaFields(kind){
+  const modeSel = $('mode'+kind); const aEl=$('val'+kind+'A'); const bEl=$('val'+kind+'B'); const cMin=$('clamp'+kind+'Min'); const cMax=$('clamp'+kind+'Max');
+  const modeVal = modeSel.value;
+  if(modeVal==='constant'){ return {mode:'constant', ref:'source', value:Number(aEl.value||0), a:0,b:0, clampMin:toNumOrNull(cMin.value), clampMax:toNumOrNull(cMax.value)}; }
+  if(modeVal.startsWith('percent')){ return {mode:'percent', ref: modeVal.endsWith('dst')?'target':'source', value:Number(aEl.value||0), a:0,b:0, clampMin:toNumOrNull(cMin.value), clampMax:toNumOrNull(cMax.value)}; }
+  // linear
+  return {mode:'linear', ref:modeVal.endsWith('dst')?'target':'source', value:0, a:Number(aEl.value||0), b:Number(bEl.value||0), clampMin:toNumOrNull(cMin.value), clampMax:toNumOrNull(cMax.value)};
+}
+
+function toNumOrNull(v){ return v===''?null:Number(v); }
+
 $('cancelEdgeBtn').addEventListener('click', ()=> overlay.style.display='none');
+
+function updatePreview(){
+  const src = getNode(dialogFrom), dst = getNode(dialogTo);
+  const tIndex = Math.max(0, Math.min(state.sim.timeIndex, (state.sim.steps||1)-1));
+  const srcPrev = src? (src.values?.[tIndex] ?? src.initial ?? 0) : 0;
+  const dstPrev = dst? (dst.values?.[tIndex] ?? dst.initial ?? 0) : 0;
+  const dT = evalDelta(readDeltaFields('Target'), srcPrev, dstPrev);
+  const dS = evalDelta(readDeltaFields('Self'), srcPrev, dstPrev);
+  $('previewTarget').textContent = `Preview: ${dT.toFixed(2)} at t=${(tIndex*state.sim.dt).toFixed(2)}s`;
+  $('previewSelf').textContent = `Preview: ${dS.toFixed(2)} at t=${(tIndex*state.sim.dt).toFixed(2)}s`;
+}
+['modeTarget','valTargetA','valTargetB','clampTargetMin','clampTargetMax','modeSelf','valSelfA','valSelfB','clampSelfMin','clampSelfMax'].forEach(id=>{ $(id).addEventListener('input', updatePreview); });
+
 $('saveEdgeBtn').addEventListener('click', ()=>{
   const required = parseFloat($('reqInput').value)||0;
-  const dTarget = parseFloat($('deltaTargetInput').value)||0;
-  const dSelf = parseFloat($('deltaSelfInput').value)||0;
+  const label = $('edgeLabelInput').value||'';
+  const targetDelta = readDeltaFields('Target');
+  const selfDelta = readDeltaFields('Self');
   if(dialogEdgeId){
     pushHistory();
     const e = state.edges.find(x=>x.id===dialogEdgeId);
-    if(e){ e.required=required; e.dTarget=dTarget; e.dSelf=dSelf; }
+    if(e){ e.required=required; e.label=label; e.targetDelta=targetDelta; e.selfDelta=selfDelta; }
   } else {
-    addEdge(dialogFrom, dialogTo, required, dTarget, dSelf);
+    pushHistory();
+    const id = uid('e');
+    state.edges.push({id, from:dialogFrom, to:dialogTo, required, label, targetDelta, selfDelta});
   }
   overlay.style.display='none';
   render(); scheduleSim();
@@ -461,19 +537,20 @@ function renderInspector(){
   const multiSel = $('multiSelection');
   const form = $('stockForm');
   if(ids.length===0){ noSel.style.display='block'; multiSel.style.display='none'; form.style.display='none'; return; }
-  if(ids.length>1){
-    noSel.style.display='none'; form.style.display='none'; multiSel.style.display='block';
-    multiSel.textContent = `${ids.length} stocks selected.`;
-    return;
-  }
+  if(ids.length>1){ noSel.style.display='none'; form.style.display='none'; multiSel.style.display='block'; multiSel.textContent = `${ids.length} stocks selected.`; return; }
   noSel.style.display='none'; multiSel.style.display='none'; form.style.display='block';
-  const n = getNode(ids[0]);
-  $('stockName').value = n.name;
-  $('stockInitial').value = n.initial;
+  const n = getNode(ids[0]); $('stockName').value = n.name; $('stockInitial').value = n.initial;
 }
 $('stockName').addEventListener('input', (e)=>{ const ids=Array.from(state.selectedIds); if(ids.length===1){ const n=getNode(ids[0]); if(n){ n.name=e.target.value; render(); } }});
 $('stockInitial').addEventListener('change', (e)=>{ const ids=Array.from(state.selectedIds); if(ids.length===1){ pushHistory(); const n=getNode(ids[0]); if(n){ n.initial=parseFloat(e.target.value)||0; render(); scheduleSim(); } }});
 $('deleteNodeBtn').addEventListener('click', ()=>{ const ids=Array.from(state.selectedIds); if(ids.length===1){ if(confirm('Delete this stock and its connections?')) deleteNode(ids[0]); }});
+
+function edgeSummaryDelta(cfg){
+  if(!cfg) return '0';
+  if(cfg.mode==='constant') return `${fmt(cfg.value)} (const)`;
+  if(cfg.mode==='percent') return `${fmt(cfg.value)}% of ${cfg.ref}`;
+  return `${fmt(cfg.a)}·${cfg.ref} + ${fmt(cfg.b)}`;
+}
 
 function renderEdgesList(){
   const wrap = $('edgesList');
@@ -486,72 +563,70 @@ function renderEdgesList(){
   for(const e of list){
     const row = document.createElement('div'); row.className='edgeItem';
     const toNode = getNode(e.to);
+    const tCfg = e.targetDelta || {mode:'constant', value:e.dTarget??0, ref:'source'}; // migration view
+    const sCfg = e.selfDelta   || {mode:'constant', value:e.dSelf??0, ref:'source'};
     row.innerHTML = `
-      <div><b>→ ${toNode?toNode.name:e.to}</b></div>
-      <div class="muted">Require ≥ ${fmt(e.required)} | Δtarget ${fmt(e.dTarget)} /tick | Δself ${fmt(e.dSelf)} /tick</div>
+      <div><b>→ ${toNode?toNode.name:e.to}</b> <span class="muted">${e.label?('· '+e.label):''}</span></div>
+      <div class="muted">Require ≥ ${fmt(e.required)} | Δtarget ${edgeSummaryDelta(tCfg)} /tick | Δself ${edgeSummaryDelta(sCfg)} /tick</div>
       <div class="actions" style="margin-top:.4rem">
         <button data-eid="${e.id}" class="editEdge">Edit</button>
         <button data-eid="${e.id}" class="delEdge" style="background:#3a1e1e;border-color:#5b2a2a">Delete</button>
       </div>`;
     wrap.appendChild(row);
   }
-  wrap.querySelectorAll('.editEdge').forEach(btn=> btn.addEventListener('click', (ev)=>{
-    const id = ev.currentTarget.getAttribute('data-eid');
-    const e = state.edges.find(x=>x.id===id);
-    openEdgeDialog(e.id, e.from, e.to);
-  }));
-  wrap.querySelectorAll('.delEdge').forEach(btn=> btn.addEventListener('click', (ev)=>{
-    const id = ev.currentTarget.getAttribute('data-eid');
-    if(confirm('Delete this connection?')) deleteEdge(id);
-  }));
+  wrap.querySelectorAll('.editEdge').forEach(btn=> btn.addEventListener('click', (ev)=>{ const id = ev.currentTarget.getAttribute('data-eid'); const e = state.edges.find(x=>x.id===id); openEdgeDialog(e.id, e.from, e.to); }));
+  wrap.querySelectorAll('.delEdge').forEach(btn=> btn.addEventListener('click', (ev)=>{ const id = ev.currentTarget.getAttribute('data-eid'); if(confirm('Delete this connection?')) deleteEdge(id); }));
+}
+
+// ====== Delta evaluation ======
+function evalDelta(cfg, source, target){
+  if(!cfg) return 0;
+  let raw = 0;
+  if(cfg.mode==='constant') raw = Number(cfg.value||0);
+  else if(cfg.mode==='percent'){ const base = (cfg.ref==='target')? target : source; raw = (Number(cfg.value||0)/100) * base; }
+  else if(cfg.mode==='linear'){ const x = (cfg.ref==='target')? target : source; raw = Number(cfg.a||0)*x + Number(cfg.b||0); }
+  if(cfg.clampMin!=null) raw = Math.max(cfg.clampMin, raw);
+  if(cfg.clampMax!=null) raw = Math.min(cfg.clampMax, raw);
+  return raw;
+}
+function getDelta(edge, which){
+  const cfg = (which==='target')? (edge.targetDelta || {mode:'constant', value:edge.dTarget??0, ref:'source'}) : (edge.selfDelta || {mode:'constant', value:edge.dSelf??0, ref:'source'});
+  // sample sign at current time for label tint
+  const src = getNode(edge.from); const dst = getNode(edge.to);
+  const ti = Math.max(0, Math.min(state.sim.timeIndex, (state.sim.steps||1)-1));
+  const sPrev = src? (src.values?.[ti] ?? src.initial ?? 0) : 0; const dPrev = dst? (dst.values?.[ti] ?? dst.initial ?? 0) : 0;
+  const sample = evalDelta(cfg, sPrev, dPrev);
+  return {cfg, sample, sign: sample>=0?'+':'−'};
 }
 
 // ====== Simulation ======
 $('simulateBtn').addEventListener('click', ()=>{ applySimInputs(); runSimulation(); });
-
-function applySimInputs(){
-  state.sim.dt = clamp(parseFloat($('dt').value)||0.1, 0.01, 999);
-  state.sim.duration = clamp(parseInt($('duration').value)||10, 1, 24*3600);
-}
-
+function applySimInputs(){ state.sim.dt = clamp(parseFloat($('dt').value)||0.1, 0.01, 999); state.sim.duration = clamp(parseInt($('duration').value)||10, 1, 24*3600); }
 let simTimer=null; function scheduleSim(){ clearTimeout(simTimer); applySimInputs(); simTimer=setTimeout(runSimulation, 150); }
 
 function runSimulation(){
-  const {dt, duration} = state.sim;
-  const steps = Math.floor(duration/dt)+1; state.sim.steps = steps; state.sim.timeIndex=0;
-  // init value arrays
+  const {dt, duration} = state.sim; const steps = Math.floor(duration/dt)+1; state.sim.steps = steps; state.sim.timeIndex=0;
   for(const n of state.nodes){ n.values = new Array(steps).fill(0); n.values[0] = Number(n.initial)||0; }
-  // iterate
   for(let t=1; t<steps; t++){
-    // carry forward previous values
     for(const n of state.nodes){ n.values[t] = n.values[t-1]; }
-    // apply each edge based on source at t-1
     for(const e of state.edges){
       const src = getNode(e.from); const dst = getNode(e.to); if(!src || !dst) continue;
-      const srcValPrev = src.values[t-1];
-      if(srcValPrev >= e.required){
-        dst.values[t] += e.dTarget;
-        src.values[t] += e.dSelf;
+      const srcPrev = src.values[t-1]; const dstPrev = dst.values[t-1];
+      const required = e.required ?? 0;
+      // migrate legacy
+      if(e.dTarget!=null || e.dSelf!=null){ e.targetDelta={...defaultDelta(), value:Number(e.dTarget||0)}; e.selfDelta={...defaultDelta(), value:Number(e.dSelf||0)}; delete e.dTarget; delete e.dSelf; }
+      if(srcPrev >= required){
+        dst.values[t] += evalDelta(e.targetDelta, srcPrev, dstPrev);
+        src.values[t] += evalDelta(e.selfDelta,   srcPrev, dstPrev);
       }
     }
   }
-  $('timeSlider').max = String(steps-1);
-  $('timeSlider').value = '0';
-  updateTimeLabel();
-  render();
+  $('timeSlider').max = String(steps-1); $('timeSlider').value = '0'; updateTimeLabel(); render();
 }
 
-function updateAtTime(idx){
-  state.sim.timeIndex = clamp(Math.floor(idx), 0, state.sim.steps?state.sim.steps-1:0);
-  render();
-}
-
+function updateAtTime(idx){ state.sim.timeIndex = clamp(Math.floor(idx), 0, state.sim.steps?state.sim.steps-1:0); render(); }
 $('timeSlider').addEventListener('input', (e)=> updateAtTime(Number(e.target.value)) );
-
-function updateTimeLabel(){
-  const t = state.sim.timeIndex * state.sim.dt;
-  $('timeLabel').textContent = `t=${t.toFixed(2)}s`;
-}
+function updateTimeLabel(){ const t = state.sim.timeIndex * state.sim.dt; $('timeLabel').textContent = `t=${t.toFixed(2)}s`; }
 
 // ====== Playback ======
 let rafId = null, lastTs = 0, accum = 0;
@@ -560,127 +635,44 @@ $('playBtn').addEventListener('click', startPlayback);
 $('pauseBtn').addEventListener('click', stopPlayback);
 $('stepFwdBtn').addEventListener('click', ()=> step(+1));
 $('stepBackBtn').addEventListener('click', ()=> step(-1));
-
 function startPlayback(){ if(state.sim.playing) return; state.sim.playing=true; lastTs=0; accum=0; $('playBtn').disabled=true; $('pauseBtn').disabled=false; loop(); }
 function stopPlayback(){ state.sim.playing=false; $('playBtn').disabled=false; $('pauseBtn').disabled=true; if(rafId){ cancelAnimationFrame(rafId); rafId=null; } }
-function loop(ts){
-  if(!state.sim.playing){ return; }
-  if(!lastTs) lastTs = ts || performance.now();
-  const now = ts || performance.now();
-  const frameMs = (state.sim.dt*1000)/(state.sim.speed||1);
-  accum += (now - lastTs); lastTs = now;
-  while(accum >= frameMs){ accum -= frameMs; step(+1); if(!state.sim.playing) return; }
-  rafId = requestAnimationFrame(loop);
-}
-function step(dir){
-  if(!state.sim.steps) return;
-  const next = clamp(state.sim.timeIndex + dir, 0, state.sim.steps-1);
-  state.sim.timeIndex = next;
-  $('timeSlider').value = String(next);
-  updateTimeLabel();
-  render();
-  if(next===state.sim.steps-1 && state.sim.playing){ stopPlayback(); }
-}
+function loop(ts){ if(!state.sim.playing){ return; } if(!lastTs) lastTs = ts || performance.now(); const now = ts || performance.now(); const frameMs = (state.sim.dt*1000)/(state.sim.speed||1); accum += (now - lastTs); lastTs = now; while(accum >= frameMs){ accum -= frameMs; step(+1); if(!state.sim.playing) return; } rafId = requestAnimationFrame(loop); }
+function step(dir){ if(!state.sim.steps) return; const next = clamp(state.sim.timeIndex + dir, 0, state.sim.steps-1); state.sim.timeIndex = next; $('timeSlider').value = String(next); updateTimeLabel(); render(); if(next===state.sim.steps-1 && state.sim.playing){ stopPlayback(); } }
 
 // ====== Chart (multi‑series) ======
 const palette = ['#6ea8ff', '#9e7bff', '#2ec27e', '#f5c542', '#ff6b6b', '#ffa3d7', '#74c0fc', '#e599f7'];
 function drawChart(){
-  const svgC = $('chart');
-  const w = svgC.clientWidth || 360; const h = svgC.clientHeight || 260;
-  svgC.setAttribute('viewBox', `0 0 ${w} ${h}`);
-  svgC.innerHTML = '';
-
-  const ids = Array.from(state.selectedIds);
-  // empty grid if no selection
-  drawGrid(svgC, w, h, 6, 4);
-  if(ids.length===0){ $('legend').innerHTML=''; return; }
-
-  // compute global min/max
+  const svgC = $('chart'); const w = svgC.clientWidth || 360; const h = svgC.clientHeight || 270; svgC.setAttribute('viewBox', `0 0 ${w} ${h}`); svgC.innerHTML = '';
+  const ids = Array.from(state.selectedIds); drawGrid(svgC, w, h, 6, 4); if(ids.length===0){ $('legend').innerHTML=''; return; }
   let minV=Infinity, maxV=-Infinity, steps=0;
-  const series = ids.map((id)=>{
-    const n = getNode(id); const vals = (n && n.values && n.values.length)? n.values : [n?n.initial:0];
-    steps = Math.max(steps, vals.length); for(const v of vals){ if(v<minV)minV=v; if(v>maxV)maxV=v; }
-    return {node:n, values:vals};
-  });
+  const series = ids.map((id)=>{ const n = getNode(id); const vals = (n && n.values && n.values.length)? n.values : [n?n.initial:0]; steps = Math.max(steps, vals.length); for(const v of vals){ if(v<minV)minV=v; if(v>maxV)maxV=v; } return {node:n, values:vals}; });
   if(minV===Infinity){ minV=0; maxV=1; }
-  const pad = 28;
-  const xScale = (i)=> pad + (i/(steps-1))*(w-pad-10);
-  const yScale = (v)=> maxV===minV ? h/2 : (h - pad - ((v - minV)/(maxV - minV))*(h - 2*pad));
-
-  series.forEach((s, idx)=>{
-    let d = '';
-    for(let i=0;i<s.values.length;i++){
-      const x=xScale(i), y=yScale(s.values[i]);
-      d += (i===0?`M ${x} ${y}`:` L ${x} ${y}`);
-    }
-    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-    path.setAttribute('d', d);
-    path.setAttribute('fill','none'); path.setAttribute('stroke', palette[idx%palette.length]); path.setAttribute('stroke-width','2');
-    svgC.appendChild(path);
-  });
-
-  // Current time marker
-  const ti = state.sim.timeIndex;
-  const x = xScale(Math.min(ti, steps-1));
-  const line = document.createElementNS('http://www.w3.org/2000/svg','line');
-  line.setAttribute('x1', x); line.setAttribute('x2', x); line.setAttribute('y1', 8); line.setAttribute('y2', h-8);
-  line.setAttribute('stroke', '#2ec27e'); line.setAttribute('stroke-dasharray', '4 4');
-  svgC.appendChild(line);
-
-  // Legend
-  const legend = $('legend'); legend.innerHTML = '';
-  series.forEach((s, idx)=>{
-    const chip = document.createElement('span'); chip.className='chip'; chip.innerHTML = `<span style="display:inline-block;width:10px;height:10px;background:${palette[idx%palette.length]};border-radius:2px"></span> ${s.node?s.node.name:'Unknown'}`;
-    legend.appendChild(chip);
-  });
+  const pad = 28; const xScale = (i)=> pad + (i/(steps-1))*(w-pad-10); const yScale = (v)=> maxV===minV ? h/2 : (h - pad - ((v - minV)/(maxV - minV))*(h - 2*pad));
+  series.forEach((s, idx)=>{ let d = ''; for(let i=0;i<s.values.length;i++){ const x=xScale(i), y=yScale(s.values[i]); d += (i===0?`M ${x} ${y}`:` L ${x} ${y}`); } const path = document.createElementNS('http://www.w3.org/2000/svg','path'); path.setAttribute('d', d); path.setAttribute('fill','none'); path.setAttribute('stroke', palette[idx%palette.length]); path.setAttribute('stroke-width','2'); svgC.appendChild(path); });
+  const ti = state.sim.timeIndex; const x = xScale(Math.min(ti, steps-1)); const line = document.createElementNS('http://www.w3.org/2000/svg','line'); line.setAttribute('x1', x); line.setAttribute('x2', x); line.setAttribute('y1', 8); line.setAttribute('y2', h-8); line.setAttribute('stroke', '#2ec27e'); line.setAttribute('stroke-dasharray', '4 4'); svgC.appendChild(line);
+  const legend = $('legend'); legend.innerHTML = ''; series.forEach((s, idx)=>{ const chip = document.createElement('span'); chip.className='chip'; chip.innerHTML = `<span style="display:inline-block;width:10px;height:10px;background:${palette[idx%palette.length]};border-radius:2px"></span> ${s.node?s.node.name:'Unknown'}`; legend.appendChild(chip); });
 }
 
-function drawGrid(svgC, w, h, xDiv=6, yDiv=4){
-  // background rect
-  const bg = document.createElementNS('http://www.w3.org/2000/svg','rect');
-  bg.setAttribute('x',0); bg.setAttribute('y',0); bg.setAttribute('width',w); bg.setAttribute('height',h);
-  bg.setAttribute('fill','var(--panel-2)'); bg.setAttribute('stroke','var(--line)');
-  svgC.appendChild(bg);
-  for(let i=1;i<xDiv;i++){
-    const x = Math.round((w/iDiv(xDiv))*i);
-    const g = document.createElementNS('http://www.w3.org/2000/svg','line');
-    g.setAttribute('x1',x); g.setAttribute('x2',x); g.setAttribute('y1',0); g.setAttribute('y2',h);
-    g.setAttribute('stroke','var(--line)'); g.setAttribute('stroke-width','1'); g.setAttribute('opacity','.5');
-    svgC.appendChild(g);
-  }
-  for(let j=1;j<yDiv;j++){
-    const y = Math.round((h/iDiv(yDiv))*j);
-    const g = document.createElementNS('http://www.w3.org/2000/svg','line');
-    g.setAttribute('x1',0); g.setAttribute('x2',w); g.setAttribute('y1',y); g.setAttribute('y2',y);
-    g.setAttribute('stroke','var(--line)'); g.setAttribute('stroke-width','1'); g.setAttribute('opacity','.5');
-    svgC.appendChild(g);
-  }
-}
+function drawGrid(svgC, w, h, xDiv=6, yDiv=4){ const bg = document.createElementNS('http://www.w3.org/2000/svg','rect'); bg.setAttribute('x',0); bg.setAttribute('y',0); bg.setAttribute('width',w); bg.setAttribute('height',h); bg.setAttribute('fill','var(--panel-2)'); bg.setAttribute('stroke','var(--line)'); svgC.appendChild(bg); for(let i=1;i<xDiv;i++){ const x = Math.round((w/iDiv(xDiv))*i); const g = document.createElementNS('http://www.w3.org/2000/svg','line'); g.setAttribute('x1',x); g.setAttribute('x2',x); g.setAttribute('y1',0); g.setAttribute('y2',h); g.setAttribute('stroke','var(--line)'); g.setAttribute('stroke-width','1'); g.setAttribute('opacity','.5'); svgC.appendChild(g); } for(let j=1;j<yDiv;j++){ const y = Math.round((h/iDiv(yDiv))*j); const g = document.createElementNS('http://www.w3.org/2000/svg','line'); g.setAttribute('x1',0); g.setAttribute('x2',w); g.setAttribute('y1',y); g.setAttribute('y2',y); g.setAttribute('stroke','var(--line)'); g.setAttribute('stroke-width','1'); g.setAttribute('opacity','.5'); svgC.appendChild(g); } }
 function iDiv(n){ return n<=0?1:n; }
 
 // ===== Save / Load JSON =====
 $('saveBtn').addEventListener('click', ()=>{
-  const data = JSON.stringify({ nodes: state.nodes.map(({values, ...rest})=>rest), edges: state.edges, sim: {dt:state.sim.dt, duration:state.sim.duration} }, null, 2);
-  const blob = new Blob([data], {type:'application/json'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'stock-graph.json'; a.click();
-  setTimeout(()=> URL.revokeObjectURL(a.href), 1000);
+  const cleanedEdges = state.edges.map(e=>({ id:e.id, from:e.from, to:e.to, required:e.required, label:e.label||'', targetDelta:e.targetDelta||{mode:'constant',ref:'source',value:e.dTarget??0,a:0,b:0,clampMin:null,clampMax:null}, selfDelta:e.selfDelta||{mode:'constant',ref:'source',value:e.dSelf??0,a:0,b:0,clampMin:null,clampMax:null} }));
+  const data = JSON.stringify({ nodes: state.nodes.map(({values, ...rest})=>rest), edges: cleanedEdges, sim: {dt:state.sim.dt, duration:state.sim.duration} }, null, 2);
+  const blob = new Blob([data], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'stock-graph.json'; a.click(); setTimeout(()=> URL.revokeObjectURL(a.href), 1000);
 });
 $('loadBtn').addEventListener('click', ()=> $('loadFile').click());
 $('loadFile').addEventListener('change', (e)=>{
   const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
-  reader.onload = ()=>{
-    try{
-      const data = JSON.parse(reader.result);
-      pushHistory();
-      state.nodes = (data.nodes||[]).map(n=>({...n, values:[]}));
-      state.edges = data.edges||[];
-      if(data.sim){ $('dt').value = data.sim.dt ?? $('dt').value; $('duration').value = data.sim.duration ?? $('duration').value; }
-      scheduleSim();
-    }catch(err){ alert('Invalid JSON: '+err.message); }
-  };
-  reader.readAsText(file);
-  e.target.value = '';
+  reader.onload = ()=>{ try{ const data = JSON.parse(reader.result); pushHistory(); state.nodes = (data.nodes||[]).map(n=>({...n, values:[]})); state.edges = (data.edges||[]).map(migrateEdge); if(data.sim){ $('dt').value = data.sim.dt ?? $('dt').value; $('duration').value = data.sim.duration ?? $('duration').value; } scheduleSim(); }catch(err){ alert('Invalid JSON: '+err.message); } };
+  reader.readAsText(file); e.target.value = '';
 });
+function migrateEdge(e){
+  if(e.targetDelta || e.selfDelta) return e; // already new format
+  return { id:e.id, from:e.from, to:e.to, required:e.required??0, label:e.label||'', targetDelta:{...defaultDelta(), value:Number(e.dTarget||0)}, selfDelta:{...defaultDelta(), value:Number(e.dSelf||0)} };
+}
 
 // ===== Utilities =====
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
@@ -689,10 +681,7 @@ function fmt(n){ return Number(n).toFixed(2); }
 // ===== Keyboard (Undo/Redo) =====
 $('undoBtn').addEventListener('click', undo);
 $('redoBtn').addEventListener('click', redo);
-window.addEventListener('keydown', (e)=>{
-  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){ e.preventDefault(); if(e.shiftKey) redo(); else undo(); }
-  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='y'){ e.preventDefault(); redo(); }
-});
+window.addEventListener('keydown', (e)=>{ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){ e.preventDefault(); if(e.shiftKey) redo(); else undo(); } if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='y'){ e.preventDefault(); redo(); } });
 
 // ===== Initialize with a couple nodes =====
 function seed(){
